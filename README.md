@@ -45,6 +45,7 @@ nix build path:.
 | --- | --- |
 | `run --preview` | Safe first run; also the default for `run` |
 | `run --live` | Enable system integration and configured service ownership |
+| `bar toggle` | Temporarily show/hide the bar over fullscreen |
 | `launcher toggle` | Open/close installed-application search |
 | `notifications toggle` | Session history, dismiss/clear, Do Not Disturb |
 | `weather toggle` | Current conditions, saved city and daily/hourly forecasts |
@@ -109,9 +110,15 @@ Copy [`examples/config.json`](examples/config.json) to `~/.config/island/config.
 }
 ```
 
-The monitor selector matches an output name, model, or Hyprland description, case-insensitively. Island treats that output as its primary monitor, falls back to an available output, and returns when the preferred monitor reconnects. A full-width black bar reserves 28 logical pixels on that monitor, with a centered clock and a system tray aligned to the right. Its top screen corners begin below the bar; its bottom corners and all four corners on other monitors keep their usual placement. Click the clock to reveal the island, attached below the bar with concave shoulder joins and rounded bottom corners. Expanded views overlay applications without increasing the reservation. Fullscreen applications release the bar's reservation and suppress passive views: the bar slides fully offscreen while both primary top corners move up to the screen edge, then return below the bar on exit. Explicit panels, authentication, and OSDs remain available.
+The monitor selector matches an output name, model, or Hyprland description, case-insensitively. Island treats that output as its primary monitor, falls back to an available output, and returns when the preferred monitor reconnects. A full-width black bar reserves 28 logical pixels on that monitor, with a centered clock and a system tray aligned to the right. Its top screen corners begin below the bar; its bottom corners and all four corners on other monitors keep their usual placement. Click the clock to reveal the island, attached below the bar with concave shoulder joins and rounded bottom corners. Expanded views overlay applications without increasing the reservation. Fullscreen applications release the bar's reservation and hide the idle bar: it slides fully offscreen while both primary top corners move up to the screen edge, then returns on exit. Notifications, explicit panels, authentication, and OSDs remain available and restore the bar while shown. Notifications still respect Do Not Disturb and wait behind interactive panels, authentication, and OSDs.
 
 An empty backlight device selects an available `/sys/class/backlight` device. No backlight or microphone means no placeholder UI. Brightness changes are observed, not applied. External-monitor DDC is not included. The terminal setting is an argument array, with any required execution flag, never a shell command string. Appearance constants live in `src/core/Theme.qml`; reduced motion changes geometry immediately and retains gentle fades.
+
+`island bar toggle` reveals the bar over a fullscreen application without opening a panel or moving application windows. Run it again to end the manual reveal; an active notification, OSD, authentication dialog, or panel can still keep the bar visible. Leaving fullscreen or locking clears the reveal, and the command has no effect outside fullscreen. Bind it to Super+Space using the Lua example below; use the same Island executable/package as the running shell.
+
+```lua
+hl.bind("SUPER + Space", hl.dsp.exec_cmd("island bar toggle"))
+```
 
 ## Live services and lock screen
 

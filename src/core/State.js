@@ -1,7 +1,7 @@
 // Pure policy: shared by QML and Node's test runner. No services or timers here.
 function initial() {
     return { panel: "", auth: false, locked: false,
-             fullscreen: false, osd: false, notification: false };
+             fullscreen: false, barRevealed: false, osd: false, notification: false };
 }
 function reduce(previous, event) {
     var s = Object.assign({}, previous);
@@ -15,13 +15,17 @@ function reduce(previous, event) {
     case "dismiss":
         if (!s.auth) s.panel = "";
         break;
+    case "bar-toggle":
+        if (s.fullscreen && !s.locked && !s.auth) s.barRevealed = !s.barRevealed;
+        break;
     case "auth": s.auth = event.value; break;
     case "lock":
         s.locked = event.value;
-        if (s.locked) { s.panel = ""; s.osd = false; s.notification = false; }
+        if (s.locked) { s.panel = ""; s.barRevealed = false; s.osd = false; s.notification = false; }
         break;
     case "fullscreen":
         s.fullscreen = event.value;
+        if (!s.fullscreen) s.barRevealed = false;
         if (s.fullscreen && ["media", "system", "audio", "network", "calendar", "bluetooth", "weather"].includes(s.panel)) s.panel = "";
         break;
     case "osd": s.osd = event.value; break;
@@ -34,9 +38,9 @@ function mode(s) {
     if (s.auth) return "auth";
     if (s.panel) return s.panel;
     if (s.osd) return "osd";
-    if (s.fullscreen) return "hidden";
     if (s.notification) return "notification";
+    if (s.fullscreen && !s.barRevealed) return "hidden";
     return "compact";
 }
-function blocksPopups(s) { return s.locked || s.auth || !!s.panel || s.fullscreen || s.osd; }
+function blocksPopups(s) { return s.locked || s.auth || !!s.panel || s.osd; }
 if (typeof module !== "undefined") module.exports = { initial: initial, reduce: reduce, mode: mode, blocksPopups: blocksPopups };

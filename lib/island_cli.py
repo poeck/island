@@ -208,7 +208,7 @@ def main(argv=None):
     modes.add_argument("--live", action="store_true", help="Enable configured desktop services")
     run.add_argument("--showcase", action="store_true", help="Temporary illustrated background and sample media")
     run.add_argument("--demo", choices=["compact", "media", "hover", "system", "audio", "network", "bluetooth", "weather", "calendar", "launcher", "notification", "notifications", "osd", "session", "auth", "lock"])
-    for name in ("launcher", "notifications", "session", "system", "audio", "network", "bluetooth", "weather", "calendar", "media", "dnd"):
+    for name in ("launcher", "notifications", "session", "system", "audio", "network", "bluetooth", "weather", "calendar", "media", "dnd", "bar"):
         item = sub.add_parser(name); item.add_argument("operation", choices=["toggle"])
     sub.add_parser("dismiss")
     sub.add_parser("status")
@@ -254,6 +254,7 @@ def main(argv=None):
             result = ipc("island", "demo", args.state).stdout.strip()
             if result != "ok": raise IslandError(result)
         elif args.command in ("launcher", "notifications", "session", "system", "audio", "network", "bluetooth", "weather", "calendar", "media"): ipc("island", "toggle", args.command)
+        elif args.command == "bar": ipc("island", "toggleBar")
         elif args.command == "dnd": print(ipc("island", "dnd").stdout.strip())
         elif args.command == "status": print(ipc("island", "status").stdout.strip())
         else: ipc("island", "dismiss")

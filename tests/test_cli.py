@@ -9,6 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'lib'))
 import island_cli as cli
 
 class CliTests(unittest.TestCase):
+    def test_bar_toggle_reaches_the_shell_without_starting_a_new_instance(self):
+        with patch.object(cli, 'configuration', return_value={}), patch.object(cli, 'ipc') as ipc:
+            self.assertEqual(cli.main(['bar', 'toggle']), 0)
+            ipc.assert_called_once_with('island', 'toggleBar')
+
     def test_invalid_configuration(self):
         for value in ['[]', '{"terminal":"sh -c"}', '{"pamService":"../login"}', '{"theme":"red"}', '{"notifications":"true"}']:
             with self.subTest(value=value), tempfile.TemporaryDirectory() as d:

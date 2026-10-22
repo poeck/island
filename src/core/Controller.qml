@@ -12,6 +12,7 @@ Item {
     function toggle(panel) { dispatch({type: "toggle", panel: panel}); }
     function open(panel) { dispatch({type: "open", panel: panel}); }
     function dismiss() { dispatch({type: "dismiss"}); }
+    function toggleBar() { dispatch({type: "bar-toggle"}); }
     function showOsd(kind, value, muted) {
         if (model.locked) return;
         osd = { kind: kind, value: Math.max(0, Math.min(150, value)), muted: muted };
