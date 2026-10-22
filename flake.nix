@@ -5,6 +5,11 @@
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       eachSystem = nixpkgs.lib.genAttrs systems;
+      # A disconnected ShellScreen can briefly outlive its QScreen on resume.
+      # Quickshell 0.3.2 otherwise dereferences null while initializing a capture.
+      quickshellFor = pkgs: pkgs.quickshell.overrideAttrs (old: {
+        patches = (old.patches or []) ++ [ ./nix/patches/quickshell-null-screen.patch ];
+      });
       source = nixpkgs.lib.cleanSourceWith {
         src = ./.;
         filter = path: type:
@@ -15,6 +20,7 @@
     in {
       packages = eachSystem (system:
         let pkgs = import nixpkgs { inherit system; };
+            quickshell = quickshellFor pkgs;
         in {
           default = pkgs.stdenvNoCC.mkDerivation {
             pname = "island";
@@ -30,7 +36,7 @@
                 --add-flags $out/share/island/bin/island \
                 --set ISLAND_ROOT $out/share/island \
                 --set ISLAND_EXECUTABLE $out/bin/island \
-                --set ISLAND_QUICKSHELL ${pkgs.quickshell}/bin/quickshell \
+                --set ISLAND_QUICKSHELL ${quickshell}/bin/quickshell \
                 --set-default SSL_CERT_FILE ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt \
                 --set-default PYTHONTZPATH ${pkgs.tzdata}/share/zoneinfo \
                 --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.glib pkgs.systemd pkgs.hyprland pkgs.alacritty pkgs.networkmanager ]}
@@ -48,23 +54,25 @@
       });
       devShells = eachSystem (system:
         let pkgs = import nixpkgs { inherit system; };
+            quickshell = quickshellFor pkgs;
         in {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              quickshell (python3.withPackages (ps: [ ps.dbus-next ])) nodejs qt6.qtdeclarative qt6.qtshadertools
+              (quickshellFor pkgs) (python3.withPackages (ps: [ ps.dbus-next ])) nodejs qt6.qtdeclarative qt6.qtshadertools
               inter glib libnotify brightnessctl wireplumber pipewire networkmanager
               sway-unwrapped hyprland grim wtype wlrctl wf-recorder ffmpeg wayland pkg-config
             ];
             shellHook = ''
               export PATH="$PWD/bin:$PATH"
               export ISLAND_FONT=${pkgs.inter}/share/fonts/truetype/InterVariable.ttf
-              export ISLAND_QUICKSHELL=${pkgs.quickshell}/bin/quickshell
-              export QML_IMPORT_PATH=${pkgs.quickshell}/lib/qt-6/qml:${pkgs.qt6.qtdeclarative}/lib/qt-6/qml
+              export ISLAND_QUICKSHELL=${quickshell}/bin/quickshell
+              export QML_IMPORT_PATH=${quickshell}/lib/qt-6/qml:${pkgs.qt6.qtdeclarative}/lib/qt-6/qml
             '';
           };
         });
       checks = eachSystem (system:
         let pkgs = import nixpkgs { inherit system; };
+            quickshell = quickshellFor pkgs;
         in {
           policy = pkgs.runCommand "island-policy-tests" { nativeBuildInputs = [ pkgs.nodejs (pkgs.python3.withPackages (ps: [ ps.dbus-next ])) ]; } ''
             cp -r ${source} source
@@ -76,7 +84,7 @@
           '';
           qml = pkgs.runCommand "island-qml-checks" {
             nativeBuildInputs = [ pkgs.qt6.qtdeclarative ];
-            QML_IMPORT_PATH = "${pkgs.quickshell}/lib/qt-6/qml:${pkgs.qt6.qtdeclarative}/lib/qt-6/qml";
+            QML_IMPORT_PATH = "${quickshell}/lib/qt-6/qml:${pkgs.qt6.qtdeclarative}/lib/qt-6/qml";
           } ''
             cp -r ${source} source
             cd source

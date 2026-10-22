@@ -1,0 +1,15 @@
+diff --git a/src/wayland/screencopy/manager.cpp b/src/wayland/screencopy/manager.cpp
+--- a/src/wayland/screencopy/manager.cpp
++++ b/src/wayland/screencopy/manager.cpp
+@@ -25,6 +25,11 @@ namespace qs::wayland::screencopy {
+ 
+ ScreencopyContext* ScreencopyManager::createContext(QObject* object, bool paintCursors) {
+ 	if (auto* screen = qobject_cast<QuickshellScreenInfo*>(object)) {
++		// Outputs can disappear while capture buffers initialize during resume.
++		// The ShellScreen wrapper survives, but screenDestroyed() clears QScreen.
++		// Decline capture so the caller can keep its opaque fallback.
++		if (!screen->screen) return nullptr;
++
+ #if SCREENCOPY_ICC
+ 		{
+ 			auto* manager = icc::IccOutputSourceManager::instance();

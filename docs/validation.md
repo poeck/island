@@ -23,6 +23,27 @@ The native suite checks:
 - Production lock acquisition, frozen-capture availability, new-output coverage, acquisition refusal, and inaccessible application input after a locker crash.
 - Every reference view at all three requested scales, plus a transition recording.
 
+## Suspend/resume screencopy regression
+
+Run `nix develop path:. --command python3 tests/screencopy_smoke.py` to check normal
+GPU-backed capture, a dangling `ShellScreen`, production lock acquisition, and
+three monitor disconnect/reconnect cycles while locked. Evidence is written to
+`artifacts/screencopy/`. The headless compositor and DBus are private; the test
+never locks or suspends the host and never submits credentials.
+
+Quickshell 0.3.2 can retain a `ShellScreen` after its underlying `QScreen` has been
+destroyed during resume. Reinitializing its capture then dereferences null in
+`IccOutputSourceManager::captureOutput` (or the WLR backend). Island carries a
+small dependency patch that declines capture for this state, allowing the opaque
+background to remain. Packages, development shells and QML checks all use this
+patched build, preserving the tested Qt pin. Revisit the patch when upgrading
+Quickshell. A test-only Qt helper invokes the same screen-invalidation slot to
+make this transient state deterministic; unpatched Quickshell exits with SIGSEGV,
+while the patched build rejects capture and keeps running.
+
+The regression and lock/monitor checks passed on 2026-10-22. An actual physical
+suspend/resume cycle still needs user validation.
+
 ## Recorded results
 
 The package build, strict QML checks, policy/CLI tests, and complete GPU-backed native suite passed on 2026-10-21. The native suite also verified monitor removal, fallback, preferred-output return, terminal argument wrapping, working directories, and persistent launch recency. Its screenshots check that the island is actually rendered on the selected output after handover.
