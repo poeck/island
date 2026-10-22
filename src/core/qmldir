@@ -1,0 +1,7 @@
+module IslandCore
+singleton Theme 1.0 Theme.qml
+singleton Settings 1.0 Settings.qml
+Controller 1.0 Controller.qml
+SpringGeometry 1.0 SpringGeometry.qml
+SpringValue 1.0 SpringValue.qml
+LockAuthController 1.0 LockAuthController.qml

@@ -1,0 +1,9 @@
+{
+  "monitor": "AOC Q27G4ZR",
+  "notifications": false,
+  "polkit": false,
+  "pamService": "swaylock",
+  "terminal": ["alacritty", "-e"],
+  "backlightDevice": "",
+  "reducedMotion": false
+}
