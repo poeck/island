@@ -521,6 +521,39 @@ monitor.libcamera = disabled
             tray_checks()
             print('Grouped tray: activation, menus, keyboard, dismissal, attention, reflow, removal and 100/125/160% scaling passed',flush=True)
             return
+        def clock_checks():
+            # Exercise the production bar with both desktop palette variants.
+            # A Controls.Label import used to shadow ui/Label.qml, making the
+            # clock black on black with a light desktop palette.
+            fixture=spawn([QS,'-p',str(source/'bar-clock.qml')],env,'bar-clock')
+            def call(method,*args): return ipc(source/'bar-clock.qml','bar-clock-test',method,*args)
+            def state(): return json.loads(call('status'))
+            eventually(lambda:state()['ready'])
+            for scale in [1,1.25,1.6]:
+                command('output','HEADLESS-1','scale',str(scale));time.sleep(.2)
+                for light in [True,False]:
+                    call('palette',str(light).lower());time.sleep(.1)
+                    current=state()
+                    name=f'{round(scale*100)}-clock-{"light" if light else "dark"}'
+                    shot(name)
+                    assert current['color']==current['expectedColor'], current
+                    assert current['family']==current['expectedFamily'], current
+                    assert current['weight']==current['axis']==600, current
+                    pixel=pixels(name)
+                    bright=sum(max(pixel(x,y))>150 for x in range(round(960-30*scale),round(960+30*scale)) for y in range(round(4*scale),round(24*scale)))
+                    assert bright>30*scale*scale, (name,'Clock glyphs must be visible on the black bar')
+                call('minute',35);eventually(lambda:state()['text']=='12:35')
+                call('shown','false');assert state()['offset']==-28
+                call('shown','true');assert state()['offset']==0
+                call('minute',34);eventually(lambda:state()['text']=='12:34')
+            fixture.terminate();fixture.wait(timeout=5)
+            command('output','HEADLESS-1','scale','1')
+            data=(OUT/'bar-clock.log').read_text()
+            assert not any(t in data for t in ['Binding loop','ReferenceError','TypeError','Unable to assign','Failed to load configuration']),data
+        if os.environ.get('ISLAND_TEST_CLOCK_ONLY'):
+            clock_checks()
+            print('Bar clock: light/dark palettes, visible glyphs, minute updates and fullscreen restoration at 100/125/160% passed',flush=True)
+            return
         if os.environ.get('ISLAND_TEST_WEATHER_ONLY'):
             weather_checks()
             print('Weather city search, race handling, cached/offline forecasts and scaled UI checks passed',flush=True)
@@ -544,6 +577,7 @@ monitor.libcamera = disabled
                 assert not any(t in data for t in ['Binding loop','ReferenceError','TypeError','Unable to assign','Failed to load configuration']), data
             print('Audio controls and private PipeWire tests passed',flush=True)
             return
+        clock_checks()
         preview = spawn([str(ROOT/'bin/island'), 'run', '--preview', '--showcase'], env, 'shell')
         eventually(lambda: status()['mode'] == 'compact')
         time.sleep(.5)

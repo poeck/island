@@ -1,7 +1,6 @@
 // PanelWindow is provided by the Wayland backend at runtime.
 // qmllint disable uncreatable-type
 import QtQuick
-import QtQuick.Controls.Basic
 import Quickshell
 import Quickshell.Wayland
 import "../core"
