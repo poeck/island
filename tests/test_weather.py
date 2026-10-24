@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -60,5 +61,28 @@ class WeatherTests(unittest.TestCase):
         data=weather.normalize(raw,weather.DEFAULT,1793511000)
         self.assertEqual([r['time'] for r in data['hourly']],['01:30','01:30','02:30'])
         self.assertEqual(data['timezone'],'America/New_York')
+    def test_daily_dates_use_api_offset_across_dst_changes(self):
+        for zone, start, offset in [
+            ('Europe/Vienna', '2026-10-24', 7200),
+            ('Europe/Vienna', '2026-03-28', 3600),
+            ('America/New_York', '2026-10-31', -14400),
+            ('America/New_York', '2026-03-07', -18000),
+            ('Asia/Kolkata', '2026-10-24', 19800),
+        ]:
+            with self.subTest(zone=zone, start=start):
+                first=dt.datetime.fromisoformat(start).replace(tzinfo=dt.timezone(dt.timedelta(seconds=offset)))
+                dates=[first+dt.timedelta(days=i) for i in range(7)]
+                epochs=[day.timestamp() for day in dates]
+                raw=forecast();raw['timezone']=zone;raw['utc_offset_seconds']=offset
+                raw['daily']={'time':epochs, 'temperature_2m_min':list(range(7)), 'temperature_2m_max':list(range(10,17)), 'sunrise':[epoch+7*3600 for epoch in epochs], 'sunset':[epoch+18*3600 for epoch in epochs]}
+                data=weather.normalize(raw,weather.DEFAULT,epochs[0]+12*3600)
+                self.assertEqual([r['dayLabel'] for r in data['daily']],[day.strftime('%a') for day in dates])
+                self.assertEqual([r['dateLabel'] for r in data['daily']],[day.strftime('%d %b') for day in dates])
+                self.assertEqual([r['min'] for r in data['daily']],list(range(7)))
+                self.assertEqual([r['max'] for r in data['daily']],list(range(10,17)))
+                # Sunrise/sunset are instants, so they still follow the destination's DST rules.
+                for row, epoch in zip(data['daily'], epochs):
+                    self.assertEqual(row['sunrise'],dt.datetime.fromtimestamp(epoch+7*3600,weather.ZoneInfo(zone)).strftime('%H:%M'))
+                    self.assertEqual(row['sunset'],dt.datetime.fromtimestamp(epoch+18*3600,weather.ZoneInfo(zone)).strftime('%H:%M'))
 
 if __name__=='__main__':unittest.main()

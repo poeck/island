@@ -57,8 +57,8 @@ def normalize(raw, city, now):
     if not isinstance(raw, dict):
         raise ValueError("Invalid forecast response.")
     zone = ZoneInfo(raw.get("timezone") or city["timezone"])
-    def local(epoch, fmt):
-        return dt.datetime.fromtimestamp(epoch, zone).strftime(fmt) if number(epoch) is not None else "—"
+    def local(epoch, fmt, timestamp_zone=zone):
+        return dt.datetime.fromtimestamp(epoch, timestamp_zone).strftime(fmt) if number(epoch) is not None else "—"
     current = raw.get("current") or {}
     if not isinstance(current, dict):
         raise ValueError("Invalid current conditions.")
@@ -75,11 +75,15 @@ def normalize(raw, city, now):
         epochs = data.get("time") or []
         if not isinstance(epochs, list):
             raise ValueError("Invalid forecast timestamps.")
+        # Daily boundaries use the API's fixed offset, even across DST changes.
+        # Actual instants (hourly readings, sunrise/sunset) use the destination zone.
+        offset = number(raw.get("utc_offset_seconds"))
+        timestamp_zone = dt.timezone(dt.timedelta(seconds=offset)) if group == "daily" and offset is not None else zone
         result = []
         for i, epoch in enumerate(epochs):
             if number(epoch) is None:
                 continue
-            row = {"epoch": epoch, "time": local(epoch, "%H:%M"), "dayLabel": local(epoch, "%a"), "dateLabel": local(epoch, "%d %b")}
+            row = {"epoch": epoch, "time": local(epoch, "%H:%M", timestamp_zone), "dayLabel": local(epoch, "%a", timestamp_zone), "dateLabel": local(epoch, "%d %b", timestamp_zone)}
             for key, source in mapping.items():
                 values = data.get(source) or []
                 if not isinstance(values, list):
