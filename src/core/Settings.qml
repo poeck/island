@@ -16,6 +16,7 @@ QtObject {
     readonly property var terminal: config.terminal || ["alacritty", "-e"]
     readonly property bool notificationsEnabled: !preview && config.notifications === true
     readonly property bool polkitEnabled: !preview && config.polkit === true
+    readonly property bool askpassEnabled: !preview && config.askpass === true
     readonly property string executable: Quickshell.env("ISLAND_EXECUTABLE") || "island"
     readonly property string user: Quickshell.env("USER") || "User"
     readonly property string stateDirectory: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/island"

@@ -14,6 +14,9 @@ in {
   };
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package pkgs.inter ];
+    home.sessionVariables = lib.mkIf (!cfg.preview && (cfg.settings.askpass or false)) {
+      SUDO_ASKPASS = "${cfg.package}/bin/island-askpass";
+    };
     xdg.configFile."island/config.json".text = builtins.toJSON cfg.settings;
     systemd.user.services.island = {
       Unit = {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Island's small process boundary. No credentials cross this CLI."""
+"""Island's process boundary; askpass writes only to sudo's private pipe."""
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))

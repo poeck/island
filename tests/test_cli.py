@@ -22,7 +22,13 @@ class CliTests(unittest.TestCase):
 
     def test_missing_config_has_preview_safe_defaults(self):
         config=cli.configuration('/tmp/island-nonexistent-test-config')
-        self.assertFalse(config['notifications']); self.assertFalse(config['polkit'])
+        self.assertFalse(config['notifications']); self.assertFalse(config['polkit']); self.assertFalse(config['askpass'])
+
+    def test_preview_cannot_start_askpass_broker(self):
+        with patch.dict(os.environ, {'ISLAND_MODE': 'preview', 'ISLAND_CONFIG': '{"askpass":true}'}):
+            with patch('askpass.main') as broker:
+                self.assertEqual(cli.main(['internal', 'askpass-bridge']), 1)
+                broker.assert_not_called()
 
     def test_session_actions_are_dry_run_outside_live_mode(self):
         def forbidden(*args,**kwargs): self.fail('Must not touch the session in preview')

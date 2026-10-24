@@ -43,6 +43,13 @@ FocusScope {
             }
         }
         Label { Layout.fillWidth: true; Layout.topMargin: 4; text: root.demo ? "Authentication is needed to perform a privileged action." : root.flow ? root.flow.message : ""; color: Theme.secondary; wrapMode: Text.Wrap; maximumLineCount: 3; lineHeight: 1.15 }
+        Label {
+            Layout.fillWidth: true
+            visible: text !== ""
+            text: root.flow && root.flow.actionId === "sudo" ? root.flow.context : ""
+            color: Theme.muted; font.pixelSize: Theme.textSmall
+            wrapMode: Text.Wrap; maximumLineCount: 3
+        }
         ComboBox {
             id: identity
             font.family: Theme.font; font.pixelSize: Theme.textBody

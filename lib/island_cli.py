@@ -13,7 +13,7 @@ import time
 ROOT = Path(os.environ.get("ISLAND_ROOT", Path(__file__).resolve().parents[1]))
 SHELL = ROOT / "src/shell.qml"
 LOCKER = ROOT / "src/locker.qml"
-DEFAULTS = {"monitor": "AOC Q27G4ZR", "notifications": False, "polkit": False,
+DEFAULTS = {"monitor": "AOC Q27G4ZR", "notifications": False, "polkit": False, "askpass": False,
             "pamService": "swaylock", "terminal": ["alacritty", "-e"],
             "backlightDevice": "", "reducedMotion": False}
 
@@ -193,7 +193,7 @@ def doctor(config):
               "pamService": str(Path("/etc/pam.d", config["pamService"])),
               "pamAvailable": Path("/etc/pam.d", config["pamService"]).is_file(),
               "notificationServerPresent": notification_owner(),
-              "notificationsEnabled": config["notifications"], "polkitEnabled": config["polkit"],
+              "notificationsEnabled": config["notifications"], "polkitEnabled": config["polkit"], "askpassEnabled": config["askpass"],
               "backlight": read_backlight(device=config["backlightDevice"]), "monitorMatch": config["monitor"]}
     print(json.dumps(checks, indent=2))
     return 0 if qs and checks["waylandDisplay"] else 1
@@ -213,10 +213,12 @@ def main(argv=None):
     sub.add_parser("dismiss")
     sub.add_parser("status")
     sub.add_parser("doctor")
+    askpass = sub.add_parser("askpass", help="Password input helper for sudo -A")
+    askpass.add_argument("prompt", nargs="?", default="Password")
     locker = sub.add_parser("lock"); locker.add_argument("--wait", action="store_true", help="Wait for compositor-confirmed coverage (also the default)")
     demo = sub.add_parser("demo"); demo.add_argument("state", choices=["compact", "media", "hover", "system", "audio", "network", "bluetooth", "weather", "calendar", "launcher", "notification", "notifications", "osd", "session", "auth", "lock"])
     internal = sub.add_parser("internal", help=argparse.SUPPRESS)
-    internal.add_argument("operation", choices=["watch-backlight", "watch-system", "watch-power-profiles", "network-snapshot", "vpn-action", "bluetooth-bridge", "weather-request", "session-action", "locked", "app-visibility"])
+    internal.add_argument("operation", choices=["watch-backlight", "watch-system", "watch-power-profiles", "network-snapshot", "vpn-action", "bluetooth-bridge", "askpass-bridge", "weather-request", "session-action", "locked", "app-visibility"])
     internal.add_argument("value", nargs="?")
     args = parser.parse_args(argv)
     try:
@@ -226,6 +228,9 @@ def main(argv=None):
             config = json.loads(os.environ["ISLAND_CONFIG"])
         if args.command == "run": run_shell(args, config)
         elif args.command == "doctor": return doctor(config)
+        elif args.command == "askpass":
+            from askpass import helper
+            return helper(args.prompt)
         elif args.command == "lock": lock(config)
         elif args.command == "internal":
             if args.operation == "watch-backlight": watch_backlight(config)
@@ -238,6 +243,11 @@ def main(argv=None):
             elif args.operation == "bluetooth-bridge":
                 from bluetooth_bridge import main as bridge_main
                 bridge_main()
+            elif args.operation == "askpass-bridge":
+                if os.environ.get("ISLAND_MODE") != "live" or not config["askpass"]:
+                    raise IslandError("Askpass requires live mode with askpass enabled.")
+                from askpass import main as askpass_main
+                return askpass_main()
             elif args.operation == "network-snapshot":
                 from network import snapshot
                 print(json.dumps(snapshot()))

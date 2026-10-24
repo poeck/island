@@ -17,6 +17,10 @@ ShellRoot {
     property bool demoWeather: false
     property bool demoBluetooth: false
     readonly property var polkit: polkitLoader.item
+    readonly property var askpass: askpassLoader.item
+    readonly property bool authActive: !!(polkit && polkit.active) || !!(askpass && askpass.active)
+    readonly property var authFlow: polkit && polkit.active ? polkit.flow : askpass ? askpass.flow : null
+    onAuthActiveChanged: Qt.callLater(() => stateController.dispatch({type: "auth", value: root.authActive}))
     readonly property bool barShown: !stateController.model.locked && (!desktop.fullscreen || stateController.mode !== "hidden")
     readonly property CapturePool capturePool: previewCaptures.item as CapturePool
     property string lastAction: ""
@@ -62,9 +66,9 @@ ShellRoot {
         id: polkitLoader; active: Settings.polkitEnabled
         sourceComponent: PolkitService {}
     }
-    Connections {
-        target: root.polkit
-        function onActiveChanged() { stateController.dispatch({type: "auth", value: root.polkit.active}); }
+    Loader {
+        id: askpassLoader; active: Settings.askpassEnabled
+        sourceComponent: AskpassService { blocked: stateController.model.locked || !!(root.polkit && root.polkit.active) }
     }
     Connections {
         target: stateController
@@ -124,7 +128,7 @@ ShellRoot {
         audioService: sound
         weatherService: climate
         barWindows: chrome.barWindows
-        demoAuth: root.demoAuth; authFlow: root.polkit ? root.polkit.flow : null
+        demoAuth: root.demoAuth; authFlow: root.authFlow
         onSessionAction: action => root.sessionAction(action)
         onCancelDemoAuth: { root.demoAuth = false; stateController.dispatch({type: "auth", value: false}); }
     }
@@ -197,7 +201,7 @@ ShellRoot {
         }
         function locked(value: bool): void { stateController.dispatch({type: "lock", value: value}); }
         function trayGeometry(): string { return JSON.stringify(chrome.trayGeometry()); }
-        function status(): string { return JSON.stringify({mode: stateController.mode, preview: Settings.preview, screen: desktop.screen ? desktop.screen.name : null, windowScreen: island.screen ? island.screen.name : null, shown: island.visible, barShown: root.barShown, barRevealed: stateController.model.barRevealed, fullscreen: desktop.fullscreen, geometry: island.geometry, animating: island.animating || chrome.animating, animationFrames: island.frameCount + chrome.animationFrames, chrome: {offset: chrome.slideOffset, animating: chrome.animating}, settlingMs: island.settledMs, outsideClickRequested: island.grabWanted, outsideClickArmed: island.outsideClickArmed, launcherFocused: island.launcherFocused, query: applicationService.query, history: notices.history.length, dnd: notices.dnd, polkit: root.polkit ? root.polkit.registered : false, lastAction: root.lastAction, mediaPlaying: mediaService.playing, barLayout: chrome.barLayout, trayCount: chrome.trayCount, trayOpen: chrome.trayOpen, weather: {demo:climate.demo,city:climate.forecastData ? climate.forecastData.location.name : climate.location.name,loaded:climate.forecastData !== null,loading:climate.loading,stale:climate.stale,error:climate.error}, calendar: island.calendarStatus, bluetooth: {demo: root.demoBluetooth, adapters: radios.adapters.length, devices: radios.devices.length, connected: radios.connected.length, powered: radios.powered, scanning: radios.scanning, busy: radios.busy, pairingPrompt: radios.prompt !== null}, network: {demo: root.demoNetwork, available: networking.available, devices: networking.devices.length, connected: networking.activeDevices.length, passwordPrompt: networking.passwordNetwork !== null}, audio: {demo: root.demoAudio, ready: sound.ready, output: sound.sink ? sound.sink.name : null, input: sound.source ? sound.source.name : null, outputs: sound.outputs.length, inputs: sound.inputs.length, applications: sound.applications.length}, powerProfiles: {available:telemetry.powerProfiles.available,profile:telemetry.powerProfiles.profile,profiles:telemetry.powerProfiles.profiles,demo:telemetry.powerProfiles.demo}, system: {cpu: telemetry.snapshot.cpu, memory: telemetry.snapshot.memory, gpu: telemetry.gpu, battery: telemetry.battery, revision: telemetry.revision, historyLength: telemetry.samples.length}, captures: root.capturePool ? Object.keys(root.capturePool.frames).map(k => ({screen:k, ready:root.capturePool.frames[k].hasContent, accepted:root.capturePool.frames[k].accepted})) : []}); }
+        function status(): string { return JSON.stringify({mode: stateController.mode, preview: Settings.preview, screen: desktop.screen ? desktop.screen.name : null, windowScreen: island.screen ? island.screen.name : null, shown: island.visible, barShown: root.barShown, barRevealed: stateController.model.barRevealed, fullscreen: desktop.fullscreen, geometry: island.geometry, animating: island.animating || chrome.animating, animationFrames: island.frameCount + chrome.animationFrames, chrome: {offset: chrome.slideOffset, animating: chrome.animating}, settlingMs: island.settledMs, outsideClickRequested: island.grabWanted, outsideClickArmed: island.outsideClickArmed, launcherFocused: island.launcherFocused, query: applicationService.query, history: notices.history.length, dnd: notices.dnd, polkit: root.polkit ? root.polkit.registered : false, askpass: root.askpass ? root.askpass.ready : false, lastAction: root.lastAction, mediaPlaying: mediaService.playing, barLayout: chrome.barLayout, trayCount: chrome.trayCount, trayOpen: chrome.trayOpen, weather: {demo:climate.demo,city:climate.forecastData ? climate.forecastData.location.name : climate.location.name,loaded:climate.forecastData !== null,loading:climate.loading,stale:climate.stale,error:climate.error}, calendar: island.calendarStatus, bluetooth: {demo: root.demoBluetooth, adapters: radios.adapters.length, devices: radios.devices.length, connected: radios.connected.length, powered: radios.powered, scanning: radios.scanning, busy: radios.busy, pairingPrompt: radios.prompt !== null}, network: {demo: root.demoNetwork, available: networking.available, devices: networking.devices.length, connected: networking.activeDevices.length, passwordPrompt: networking.passwordNetwork !== null}, audio: {demo: root.demoAudio, ready: sound.ready, output: sound.sink ? sound.sink.name : null, input: sound.source ? sound.source.name : null, outputs: sound.outputs.length, inputs: sound.inputs.length, applications: sound.applications.length}, powerProfiles: {available:telemetry.powerProfiles.available,profile:telemetry.powerProfiles.profile,profiles:telemetry.powerProfiles.profiles,demo:telemetry.powerProfiles.demo}, system: {cpu: telemetry.snapshot.cpu, memory: telemetry.snapshot.memory, gpu: telemetry.gpu, battery: telemetry.battery, revision: telemetry.revision, historyLength: telemetry.samples.length}, captures: root.capturePool ? Object.keys(root.capturePool.frames).map(k => ({screen:k, ready:root.capturePool.frames[k].hasContent, accepted:root.capturePool.frames[k].accepted})) : []}); }
     }
     Component.onCompleted: {
         Quickshell.watchFiles = Settings.preview && Quickshell.env("ISLAND_WATCH") !== "0";

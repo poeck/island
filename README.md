@@ -103,6 +103,7 @@ Copy [`examples/config.json`](examples/config.json) to `~/.config/island/config.
   "monitor": "AOC Q27G4ZR",
   "notifications": false,
   "polkit": false,
+  "askpass": false,
   "pamService": "swaylock",
   "terminal": ["alacritty", "-e"],
   "backlightDevice": "",
@@ -125,6 +126,30 @@ hl.bind("SUPER + Space", hl.dsp.exec_cmd("island bar toggle"))
 1. Inspect all preview states and run `island doctor`.
 2. Stop the preview process. Disable the overlapping notification and/or polkit agent in your existing shell using its normal configuration. Island never stops another shell.
 3. Independently enable `notifications` and `polkit` in Island's configuration, then run `island run --live`. A notification ownership conflict is reported before launch; polkit registration failures are reported by the native agent.
+
+Sudo uses a separate authentication mechanism from Polkit. Enable `"askpass": true`
+to display `sudo -A` password requests in the same Island authentication view.
+The Home Manager module sets `SUDO_ASKPASS` to the package's `island-askpass`
+helper; outside Home Manager, set it to that executable's absolute path yourself.
+Restart your session after changing session variables. Ordinary terminal `sudo`
+continues to use its terminal unless a wrapper or caller selects `-A`.
+
+The helper accepts optional `SUDO_ASKPASS_ACTION`, `SUDO_ASKPASS_TARGET`, and
+`SUDO_ASKPASS_DIRECTORY` context, defaulting to “Sudo request”, root, and the
+working directory. Include only the program name in the action; arguments may
+contain secrets. Sudo performs password validation and retries. Island serializes
+requests, prioritizes Polkit, waits behind the screen lock, and cancels each
+request after two minutes. Cancel, disconnect, or shell shutdown fails the
+request without returning a password. When Island is unavailable, the helper
+fails; `/run/wrappers/bin/sudo` remains available for terminal authentication.
+Preview never starts the askpass broker.
+
+Passwords travel only through the shell's child-process pipe, a user-owned Unix
+socket inside the private `XDG_RUNTIME_DIR/island-askpass` directory, and the
+helper's stdout pipe to sudo. They are absent from command arguments, environment
+variables, status IPC, logs, and files. This has the same trust boundary as other
+same-user desktop processes; the displayed request context is supplied by the
+caller.
 4. Test `island lock --wait` from your session before adding it to idle/suspend automation.
 
 The existing `/etc/pam.d/swaylock` service is used by default. If your NixOS configuration does not supply it, add `security.pam.services.swaylock = {};` through your normal NixOS configuration workflow. Never use the lock **preview** as a security mechanism.

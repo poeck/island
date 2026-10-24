@@ -2,6 +2,7 @@
   "monitor": "AOC Q27G4ZR",
   "notifications": false,
   "polkit": false,
+  "askpass": false,
   "pamService": "swaylock",
   "terminal": ["alacritty", "-e"],
   "backlightDevice": "",

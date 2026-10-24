@@ -40,6 +40,8 @@
                 --set-default SSL_CERT_FILE ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt \
                 --set-default PYTHONTZPATH ${pkgs.tzdata}/share/zoneinfo \
                 --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.glib pkgs.systemd pkgs.hyprland pkgs.alacritty pkgs.networkmanager ]}
+              makeWrapper ${pkgs.python3}/bin/python3 $out/bin/island-askpass \
+                --add-flags $out/share/island/bin/island-askpass
               runHook postInstall
             '';
             meta = {

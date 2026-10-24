@@ -44,6 +44,18 @@ while the patched build rejects capture and keeps running.
 The regression and lock/monitor checks passed on 2026-10-22. An actual physical
 suspend/resume cycle still needs user validation.
 
+## Sudo askpass
+
+Run `nix develop path:. --command python3 tests/askpass_smoke.py` for the live-mode
+askpass view on private headless Wayland/DBus. It uses synthetic input without
+invoking sudo, accessing host services, or creating a session lock. It checks
+password submission, cleared input on a subsequent request, Escape cancellation,
+client disconnect, deferral behind the shell's lock state, launcher/search
+restoration, and failure when the shell exits. A screenshot is written to
+`artifacts/askpass/sudo-auth.png`. Python tests additionally cover serialized
+requests, stale replies, timeout, malformed input, runtime permissions, exclusive
+broker ownership, private stdio, and preview rejection.
+
 ## Recorded results
 
 The package build, strict QML checks, policy/CLI tests, and complete GPU-backed native suite passed on 2026-10-21. The native suite also verified monitor removal, fallback, preferred-output return, terminal argument wrapping, working directories, and persistent launch recency. Its screenshots check that the island is actually rendered on the selected output after handover.

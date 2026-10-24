@@ -38,7 +38,7 @@ The island spring uses angular frequency 32 rad/s and damping ratio 0.72 (about 
 
 ## Contention
 
-Locking supersedes all shell UI. Polkit supersedes ordinary panels while preserving their selection and search text. The click-opened media view is an ordinary interactive panel: it persists across pointer movement and media actions, and closes via the clock, Escape, an outside click, or fullscreen entry. Panels supersede OSDs, which are shown inline; standalone OSDs supersede notifications. Fullscreen hides the idle bar but allows notification popups, which restore the bar while shown. Notifications queue behind interactive content and expire against their original deadlines. DND and locking suppress popup delivery without generating a replay burst.
+Locking supersedes all shell UI. Polkit and sudo askpass supersede ordinary panels while preserving their selection and search text. Polkit takes priority over a pending askpass request. The click-opened media view is an ordinary interactive panel: it persists across pointer movement and media actions, and closes via the clock, Escape, an outside click, or fullscreen entry. Panels supersede OSDs, which are shown inline; standalone OSDs supersede notifications. Fullscreen hides the idle bar but allows notification popups, which restore the bar while shown. Notifications queue behind interactive content and expire against their original deadlines. DND and locking suppress popup delivery without generating a replay burst.
 
 Notifications are copied into plain session-owned records, independent of native object lifetime. Transient records disappear on close. Expired records lose their actions. History is bounded to 200 records; eviction closes any remaining native notification. Replacement property signals are coalesced after the native update. Launch history is a separate, small JSON file.
 
@@ -69,3 +69,21 @@ Weather uses an on-demand `WeatherService` and a bounded stdlib HTTPS adapter (`
 `core/Theme.qml` holds every colour and size. Surfaces are true black (`#000000`) with barely lifted cards (`#0a0a0a`) and hairline borders; hover and selection are grey only. Indigo (`#6366f1`, Tailwind indigo-500) marks filled active states — switches, slider fills, the active power profile, today's date — and keyboard focus. It is never used for small text. Red (`#f87171`) marks errors and amber (`#fbbf24`) warnings such as low battery, stale forecasts or hot disks. Type is Inter on one scale (11/12/13/15/20/28 px) with tabular figures for numbers. Shared building blocks live in `src/ui`: `Card`, `ViewHeader`, `ActionButton`, `IconButton`, `Toggle`, `Segment`/`SegmentedTrack`, `Input`, `Badge`, `Kbd` and `BarButton`.
 
 Typography uses regular (400) for body copy and metadata, medium (500) for controls and item names, semibold (600) for panel/section headings and main readings, and bold (700) for the selected calendar date. Inter's bundled variable face is registered through `FontLoader`; text primitives and native input/selection controls synchronize the `wght` axis with `font.weight`. Qt can otherwise resolve medium/semibold to the Regular instance when Inter is not installed in system fontconfig, even though `FontInfo.weight` reports the requested weight. The development shell exposes installed Inter instances and can mask this. Synchronization is guarded and imperative because a direct binding between two subproperties of QML's font value produces binding loops. No system font installation or desktop theme changes are required.
+
+## Sudo askpass
+
+`AskpassService` adapts a sudo request to the same `AuthView` interface as native
+Polkit. Its opt-in live-mode broker (`lib/askpass.py`) serializes at most eight
+clients on a mode-0600 Unix socket in a checked mode-0700 runtime directory.
+Socket peers must have the current UID. A file lock prevents another broker from
+replacing a live socket; a stale socket is removed only while holding that lock.
+Request IDs prevent stale replies from reaching a different caller. Each request
+is bounded to two minutes, and client disconnect clears its prompt. The broker
+uses private stdio to the shell, stops on stdin EOF, and uses Linux's parent-death
+signal to fail pending clients if the shell exits abruptly. Responses are never
+emitted on broker stdout or exposed by shell IPC; only `island-askpass` writes
+them to sudo's pipe. It stores no credential files. The caller-provided action,
+user, directory, and prompt are plain text; sudo retains authentication, retry,
+and authorization policy. A blocked request waits behind Polkit or the lock;
+changing flows clears the password field. `island status` reports only whether
+the broker is ready.
