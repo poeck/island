@@ -11,6 +11,8 @@ import "views"
 ShellRoot {
     id: root
     property bool demoAuth: false
+    property string demoAuthStage: "password"
+    property bool demoLockKey: false
     property bool demoLock: false
     property bool demoAudio: false
     property bool demoNetwork: false
@@ -18,14 +20,36 @@ ShellRoot {
     property bool demoBluetooth: false
     readonly property var polkit: polkitLoader.item
     readonly property var askpass: askpassLoader.item
-    readonly property bool authActive: !!(polkit && polkit.active) || !!(askpass && askpass.active)
-    readonly property var authFlow: polkit && polkit.active ? polkit.flow : askpass ? askpass.flow : null
+    // A pam-u2f touch Island has no conversation for (terminal sudo, another
+    // Polkit agent) gets a passive notice; it never answers or cancels it.
+    property bool touchHidden: false
+    readonly property bool touchActive: keyStatus.administrative && !stateController.model.locked && !touchHidden
+    readonly property bool authActive: !!(polkit && polkit.active) || !!(askpass && askpass.active) || touchActive
+    readonly property var authFlow: polkit && polkit.active ? polkit.flow : askpass && askpass.active ? askpass.flow : touchActive ? touchFlow : null
+    readonly property bool authTouchPending: polkit && polkit.active ? keyStatus.polkit : askpass && askpass.active ? keyStatus.sudo : touchActive
     onAuthActiveChanged: Qt.callLater(() => stateController.dispatch({type: "auth", value: root.authActive}))
     readonly property bool barShown: !stateController.model.locked && (!desktop.fullscreen || stateController.mode !== "hidden")
     readonly property CapturePool capturePool: previewCaptures.item as CapturePool
     property string lastAction: ""
     SystemClock { id: clock; precision: SystemClock.Minutes }
     Controller { id: stateController }
+    SecurityKeyService { id: keyStatus; onPendingChanged: root.touchHidden = false }
+    QtObject {
+        id: touchFlow
+        readonly property bool passive: true
+        readonly property string actionId: "security-key"
+        readonly property string source: keyStatus.sudo ? "sudo" : "System authorization"
+        readonly property string message: keyStatus.sudo ? "A sudo command is waiting for your confirmation." : "A system action is waiting for your confirmation."
+        readonly property string cancelHint: keyStatus.sudo ? "To cancel, press Ctrl+C where sudo is running" : "To cancel, use the app that asked"
+        readonly property bool isResponseRequired: false
+        readonly property bool responseVisible: false
+        readonly property var identities: []
+        readonly property string inputPrompt: ""
+        readonly property string supplementaryMessage: ""
+        readonly property bool supplementaryIsError: false
+        // Island cannot cancel another process's PAM conversation; hide until it changes.
+        function cancelAuthenticationRequest() { root.touchHidden = true; }
+    }
     DesktopService { id: desktop }
     MediaService { id: mediaService; demo: Settings.showcase }
     AppService { id: applicationService }
@@ -83,7 +107,7 @@ ShellRoot {
     }
     function demo(state) {
         if (!Settings.preview) return "Demo commands require preview mode.";
-        if (state === "auth") { demoAuth = true; stateController.dispatch({type: "auth", value: true}); }
+        if (state === "auth" || state === "auth-key") { demoAuthStage = state === "auth" ? "password" : "touch"; demoAuth = true; stateController.dispatch({type: "auth", value: true}); }
         else if (state === "notification") notices.demo();
         else if (state === "osd") stateController.showOsd("brightness", 55, false);
         else if (state === "media" || state === "hover") { mediaService.demo = true; stateController.open("media"); }
@@ -91,7 +115,7 @@ ShellRoot {
         else if (state === "bluetooth") { demoBluetooth = true; stateController.open("bluetooth"); }
         else if (state === "network") { demoNetwork = true; stateController.open("network"); }
         else if (state === "audio") { demoAudio = true; stateController.open("audio"); }
-        else if (state === "lock") { demoLock = true; stateController.dispatch({type: "lock", value: true}); }
+        else if (state === "lock" || state === "lock-key") { demoLockKey = state === "lock-key"; demoLock = true; stateController.dispatch({type: "lock", value: true}); }
         else if (state === "compact") {
             demoAuth = false; demoLock = false; stateController.model = ({panel: "", auth: false, locked: false, fullscreen: desktop.fullscreen, barRevealed: false, osd: false, notification: false});
         } else if (["launcher", "notifications", "session", "system", "calendar"].includes(state)) {
@@ -128,7 +152,8 @@ ShellRoot {
         audioService: sound
         weatherService: climate
         barWindows: chrome.barWindows
-        demoAuth: root.demoAuth; authFlow: root.authFlow
+        demoAuth: root.demoAuth; demoAuthStage: root.demoAuthStage; authFlow: root.authFlow
+        keyTouchPending: root.authTouchPending
         onSessionAction: action => root.sessionAction(action)
         onCancelDemoAuth: { root.demoAuth = false; stateController.dispatch({type: "auth", value: false}); }
     }
@@ -176,6 +201,7 @@ ShellRoot {
             required property var modelData
             screen: modelData
             date: clock.date
+            keySequence: root.demoLockKey
             snapshot: previewCaptures.item ? previewCaptures.item.take(screen) : null
             onDismiss: { root.demoLock = false; stateController.dispatch({type: "lock", value: false}); }
         }

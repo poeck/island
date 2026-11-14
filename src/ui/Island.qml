@@ -17,7 +17,9 @@ PanelWindow {
     required property var notifications
     required property date date
     property var authFlow: null
+    property bool keyTouchPending: false
     property bool demoAuth: false
+    property string demoAuthStage: "password"
     property real chromeOffset: 0
     property var systemService: null
     property var bluetoothService: null
@@ -48,6 +50,9 @@ PanelWindow {
     // does not require Hyprland's IPC environment variable (launchers and user
     // services do not always inherit that variable).
     readonly property bool grabWanted: controller.interactive && !controller.model.auth
+    // A touch-only notice has nothing to type into. Leaving keyboard focus with
+    // the requesting terminal keeps Ctrl+C (and typing elsewhere) available.
+    readonly property bool authPassive: mode === "auth" && !demoAuth && !!authFlow && authFlow.passive === true
     readonly property bool outsideClickArmed: grab.active
     property bool grabIncludesBar: false
     onOutsideClickArmedChanged: {
@@ -78,7 +83,7 @@ PanelWindow {
     // outside press can never reach the focus grab's dismissal path. Bootstrap
     // keyboard focus until the grab takes over, then let that grab own focus.
     // Authentication and compositors without this protocol retain exclusivity.
-    WlrLayershell.keyboardFocus: !controller.interactive ? WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: !controller.interactive || window.authPassive ? WlrKeyboardFocus.None
         : controller.model.auth || !window.outsideClickArmed ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.OnDemand
     mask: NotchRegion {
@@ -281,7 +286,8 @@ PanelWindow {
                 AuthView {
                     id: authView
                     width: Math.min(Theme.dimensions.auth[0], window.width - 48); height: window.panelHeight; anchors.horizontalCenter: parent.horizontalCenter
-                    flow: window.authFlow; demo: window.demoAuth; active: window.mode === "auth"
+                    flow: window.authFlow; demo: window.demoAuth; demoStage: window.demoAuthStage; active: window.mode === "auth"
+                    keyTouchPending: window.keyTouchPending
                     onDemoFinished: window.cancelDemoAuth()
                 }
             }

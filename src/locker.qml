@@ -7,6 +7,7 @@ import Quickshell.Services.Pam
 import "core"
 import "views"
 import "ui"
+import "services"
 
 ShellRoot {
     id: root
@@ -18,10 +19,11 @@ ShellRoot {
         id: acquisition; interval: 4000
         onTriggered: if (!lock.secure) { root.error = "The compositor refused the session lock."; console.error(root.error); Qt.quit(); }
     }
-    PamContext { id: pam; config: Settings.pamService; user: Settings.user }
+    PamContext { id: pam; config: authentication.service; user: Settings.user }
+    SecurityKeyService { id: keyStatus }
     LockAuthController {
         id: authentication
-        pam: pam; secure: lock.secure
+        pam: pam; secure: lock.secure; keyTouch: keyStatus.locking
         onAuthenticated: { lock.locked = false; unlockNotice.running = true; }
     }
     WlSessionLock {
@@ -33,10 +35,12 @@ ShellRoot {
             FrozenBackdrop { anchors.fill: parent; snapshot: captures.take(surface.screen) }
             LockContent {
                 anchors.fill: parent; date: clock.date
-                busy: authentication.busy; message: authentication.message; error: authentication.error
-                responseVisible: pam.active && pam.responseVisible
-                prompt: pam.active && pam.responseRequired ? pam.message : "Password"
+                stage: authentication.stage; prompt: authentication.prompt; responseVisible: authentication.responseVisible
+                message: authentication.message; error: authentication.error
+                alternative: authentication.alternativeLabel
                 onResponse: value => authentication.submit(value)
+                onRetry: authentication.retry()
+                onUseAlternative: authentication.useAlternative()
             }
         }
     }

@@ -21,7 +21,9 @@ island demo notification
 island demo osd
 island demo session
 island demo auth
+island demo auth-key
 island demo lock
+island demo lock-key
 island demo compact
 ```
 
@@ -151,6 +153,19 @@ variables, status IPC, logs, and files. This has the same trust boundary as othe
 same-user desktop processes; the displayed request context is supplied by the
 caller.
 4. Test `island lock --wait` from your session before adding it to idle/suspend automation.
+
+Security keys are opt-in and leave password-only setups unchanged. PAM, usually
+pam-u2f, decides what is required; Island only presents it. `"securityKeys": true`
+starts a watcher for pam-u2f `authpending_file` markers named
+`pam-u2f-{sudo,polkit,lock}.pending` in the private `XDG_RUNTIME_DIR`. While one
+is open, the matching authentication view asks for a touch; a terminal `sudo`
+or another Polkit agent gets a passive notice that keeps keyboard focus where the
+request started. Point those markers only at steps that wait for a touch: a
+PIN-only stack goes straight from its PIN prompt to the result. Prompts come from
+the PAM conversation, so a PIN, a password, or a multi-step stack shows each step
+in turn. `"passwordPamService"` names an optional second PAM service, offered on
+the lock screen as “Use password instead”. `demo auth-key` and `demo lock-key`
+preview these states without authenticating.
 
 The existing `/etc/pam.d/swaylock` service is used by default. If your NixOS configuration does not supply it, add `security.pam.services.swaylock = {};` through your normal NixOS configuration workflow. Never use the lock **preview** as a security mechanism.
 

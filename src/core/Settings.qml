@@ -12,6 +12,8 @@ QtObject {
     readonly property bool reducedMotion: config.reducedMotion === true
     readonly property string monitor: config.monitor || "AOC Q27G4ZR"
     readonly property string pamService: config.pamService || "swaylock"
+    readonly property string passwordPamService: config.passwordPamService || ""
+    readonly property bool securityKeysEnabled: !preview && config.securityKeys === true
     readonly property string backlightDevice: config.backlightDevice || ""
     readonly property var terminal: config.terminal || ["alacritty", "-e"]
     readonly property bool notificationsEnabled: !preview && config.notifications === true

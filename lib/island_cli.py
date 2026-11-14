@@ -15,7 +15,8 @@ SHELL = ROOT / "src/shell.qml"
 LOCKER = ROOT / "src/locker.qml"
 DEFAULTS = {"monitor": "AOC Q27G4ZR", "notifications": False, "polkit": False, "askpass": False,
             "pamService": "swaylock", "terminal": ["alacritty", "-e"],
-            "backlightDevice": "", "reducedMotion": False}
+            "backlightDevice": "", "reducedMotion": False,
+            "securityKeys": False, "passwordPamService": ""}
 
 class IslandError(Exception):
     pass
@@ -41,6 +42,8 @@ def configuration(path=None):
         raise IslandError("terminal must be a nonempty argument array.")
     if "/" in config["pamService"] or not config["pamService"]:
         raise IslandError("pamService must be a service name from /etc/pam.d.")
+    if config["passwordPamService"] and ("/" in config["passwordPamService"] or not all(c.isalnum() or c in "-_." for c in config["passwordPamService"])):
+        raise IslandError("passwordPamService must be a service name from /etc/pam.d.")
     if "/" in config["backlightDevice"]:
         raise IslandError("backlightDevice must be a device name, not a path.")
     return config
@@ -207,7 +210,7 @@ def main(argv=None):
     modes.add_argument("--preview", action="store_true", help="Safe side-by-side preview (default)")
     modes.add_argument("--live", action="store_true", help="Enable configured desktop services")
     run.add_argument("--showcase", action="store_true", help="Temporary illustrated background and sample media")
-    run.add_argument("--demo", choices=["compact", "media", "hover", "system", "audio", "network", "bluetooth", "weather", "calendar", "launcher", "notification", "notifications", "osd", "session", "auth", "lock"])
+    run.add_argument("--demo", choices=["compact", "media", "hover", "system", "audio", "network", "bluetooth", "weather", "calendar", "launcher", "notification", "notifications", "osd", "session", "auth", "auth-key", "lock", "lock-key"])
     for name in ("launcher", "notifications", "session", "system", "audio", "network", "bluetooth", "weather", "calendar", "media", "dnd", "bar"):
         item = sub.add_parser(name); item.add_argument("operation", choices=["toggle"])
     sub.add_parser("dismiss")
@@ -216,9 +219,9 @@ def main(argv=None):
     askpass = sub.add_parser("askpass", help="Password input helper for sudo -A")
     askpass.add_argument("prompt", nargs="?", default="Password")
     locker = sub.add_parser("lock"); locker.add_argument("--wait", action="store_true", help="Wait for compositor-confirmed coverage (also the default)")
-    demo = sub.add_parser("demo"); demo.add_argument("state", choices=["compact", "media", "hover", "system", "audio", "network", "bluetooth", "weather", "calendar", "launcher", "notification", "notifications", "osd", "session", "auth", "lock"])
+    demo = sub.add_parser("demo"); demo.add_argument("state", choices=["compact", "media", "hover", "system", "audio", "network", "bluetooth", "weather", "calendar", "launcher", "notification", "notifications", "osd", "session", "auth", "auth-key", "lock", "lock-key"])
     internal = sub.add_parser("internal", help=argparse.SUPPRESS)
-    internal.add_argument("operation", choices=["watch-backlight", "watch-system", "watch-power-profiles", "network-snapshot", "vpn-action", "bluetooth-bridge", "askpass-bridge", "weather-request", "session-action", "locked", "app-visibility"])
+    internal.add_argument("operation", choices=["watch-backlight", "watch-system", "watch-power-profiles", "network-snapshot", "vpn-action", "bluetooth-bridge", "askpass-bridge", "watch-security-keys", "weather-request", "session-action", "locked", "app-visibility"])
     internal.add_argument("value", nargs="?")
     args = parser.parse_args(argv)
     try:
@@ -248,6 +251,11 @@ def main(argv=None):
                     raise IslandError("Askpass requires live mode with askpass enabled.")
                 from askpass import main as askpass_main
                 return askpass_main()
+            elif args.operation == "watch-security-keys":
+                if os.environ.get("ISLAND_MODE") != "live" or not config["securityKeys"]:
+                    raise IslandError("Security key monitoring requires live mode with securityKeys enabled.")
+                from security_keys import watch
+                watch()
             elif args.operation == "network-snapshot":
                 from network import snapshot
                 print(json.dumps(snapshot()))

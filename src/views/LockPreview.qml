@@ -10,6 +10,7 @@ PanelWindow {
     id: root
     required property date date
     property var snapshot: null
+    property bool keySequence: false
     signal dismiss()
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
@@ -18,5 +19,5 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: Theme.background
     FrozenBackdrop { anchors.fill: parent; snapshot: root.snapshot; showcase: Settings.showcase }
-    LockContent { anchors.fill: parent; date: root.date; preview: true; onPreviewDismiss: root.dismiss() }
+    LockContent { anchors.fill: parent; date: root.date; preview: true; previewKey: root.keySequence; onPreviewDismiss: root.dismiss() }
 }

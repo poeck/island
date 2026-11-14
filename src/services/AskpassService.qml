@@ -25,6 +25,7 @@ Item {
         readonly property string actionId: "sudo"
         readonly property string message: root.request ? root.request.action : ""
         readonly property string context: root.request ? "Run as: " + root.request.target + "\nDirectory: " + root.request.directory : ""
+        readonly property var details: root.request ? [{label: "Run as", value: root.request.target}, {label: "Directory", value: root.request.directory}] : []
         readonly property string inputPrompt: root.request ? root.request.prompt : ""
         readonly property bool isResponseRequired: root.active
         readonly property bool responseVisible: false
